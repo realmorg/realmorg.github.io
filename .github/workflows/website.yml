@@ -2,8 +2,8 @@ name: Website
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types: [realm-main]
+  push:
+    branches: [rebuild]
   schedule:
     - cron: "17 * * * *"
 
