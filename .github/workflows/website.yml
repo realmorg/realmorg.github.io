@@ -38,9 +38,16 @@ jobs:
         env:
           SITE_URL: ${{ steps.pages.outputs.origin }}
           SITE_BASE: ${{ steps.pages.outputs.base_path }}
+      # Lists new and changed pages for IndexNow while the old sitemap is still live.
+      - run: node scripts/indexnow.mjs apps/site/dist/sitemap.xml indexnow.json
       - uses: actions/upload-pages-artifact@v4
         with:
           path: apps/site/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: indexnow
+          path: indexnow.json
+          if-no-files-found: ignore
 
   deploy:
     needs: build
@@ -51,3 +58,25 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      # Tells Bing, Yandex and the other IndexNow engines about the pages that just went live.
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: indexnow
+      - name: Submit new and changed pages to IndexNow
+        run: |
+          [ -f indexnow.json ] || { echo "No new or changed pages."; exit 0; }
+          node -e '
+            const batches = require("./indexnow.json");
+            (async () => {
+              for (const body of batches) {
+                const response = await fetch("https://api.indexnow.org/indexnow", {
+                  method: "POST",
+                  headers: { "content-type": "application/json; charset=utf-8" },
+                  body: JSON.stringify(body),
+                });
+                console.log(`IndexNow: ${body.urlList.length} pages, HTTP ${response.status}`);
+                if (response.status >= 400 && response.status !== 429) console.log(await response.text());
+              }
+            })();
+          '
