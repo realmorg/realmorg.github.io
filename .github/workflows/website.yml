@@ -24,6 +24,8 @@ jobs:
         with:
           repository: realmorg/realm
           ref: main
+          # Full history, so each page can show the date it last changed.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
